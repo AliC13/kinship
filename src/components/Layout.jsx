@@ -21,7 +21,7 @@ export default function Layout() {
         <nav className="flex-1 px-3 py-4 space-y-1">
           <div className="px-2 py-1.5 text-[10px] uppercase tracking-wider text-slate-500">Navigate</div>
           <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm bg-white/5 text-white">
-            <Trees size={16} /> My Family Tree
+            <Trees size={16} /> My Heritage
           </div>
         </nav>
         <div className="px-5 py-4 border-t border-white/5 space-y-3">
