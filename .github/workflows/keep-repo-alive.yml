@@ -1,0 +1,28 @@
+name: Keep Repo Active
+
+# GitHub silently disables scheduled workflows (like keep-alive.yml) after
+# 60 days with no new commits. This job pushes a tiny commit every ~50 days
+# so that never happens - fully hands-off.
+on:
+  schedule:
+    - cron: '0 10 1 * *' # 1st of every month, 10:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  touch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record a heartbeat commit
+        run: |
+          mkdir -p .github
+          date -u +"Last automated heartbeat: %Y-%m-%d %H:%M UTC" > .github/last-active.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/last-active.txt
+          git diff --staged --quiet || git commit -m "chore: keep-repo-alive heartbeat"
+          git push
