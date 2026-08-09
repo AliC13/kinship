@@ -1,6 +1,20 @@
 import { supabase } from '@/api/supabaseClient';
 
 /**
+ * Postgres rejects "" for date/numeric columns (error 22007) - it wants
+ * null for "no value". The forms use "" as their empty state (e.g. an
+ * untouched <input type="date">), so convert top-level empty strings to
+ * null before every write. Doesn't touch arrays/objects like `milestones`.
+ */
+function sanitize(payload) {
+  const cleaned = {};
+  for (const [key, value] of Object.entries(payload)) {
+    cleaned[key] = value === '' ? null : value;
+  }
+  return cleaned;
+}
+
+/**
  * Creates an entity client that mimics the shape of the old
  * base44.entities.<Name> API (list/create/update/delete), backed by a
  * Supabase table. Every row is scoped to the logged-in user via the
@@ -41,7 +55,7 @@ function createEntityClient(table) {
 
       const { data, error } = await supabase
         .from(table)
-        .insert({ ...payload, user_id: user.id })
+        .insert({ ...sanitize(payload), user_id: user.id })
         .select()
         .single();
 
@@ -52,7 +66,7 @@ function createEntityClient(table) {
     async update(id, payload) {
       const { data, error } = await supabase
         .from(table)
-        .update({ ...payload, updated_date: new Date().toISOString() })
+        .update({ ...sanitize(payload), updated_date: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single();
