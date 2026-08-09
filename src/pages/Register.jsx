@@ -52,7 +52,7 @@ export default function Register() {
         type: "signup",
       });
       if (verifyError) throw verifyError;
-      window.location.href = "/";
+      window.location.href = import.meta.env.BASE_URL;
     } catch (err) {
       setError(err.message || "Invalid verification code");
     } finally {
@@ -77,7 +77,7 @@ export default function Register() {
   const handleGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin + import.meta.env.BASE_URL},
+      options: { redirectTo: window.location.origin },
     });
   };
 
