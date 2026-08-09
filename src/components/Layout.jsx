@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
-import { Trees, LogOut, ChevronDown, ChevronRight, Eye, Pencil, UserPlus, Share2 } from 'lucide-react';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { Trees, LogOut, ChevronDown, ChevronRight, Eye, Pencil, Share2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 
 // Placeholder data until real sharing is wired up to the backend.
@@ -8,19 +8,18 @@ const PLACEHOLDER_SHARED = [
   { email: 'jane.doe@example.com', permission: 'view' },
   { email: 'sam.smith@example.com', permission: 'edit' },
   { email: 'alex.chen@example.com', permission: 'view' },
+  { email: 'ali.han@example.com', permission: 'view' },
 ];
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [sharedOpen, setSharedOpen] = useState(true);
-  const [sharedWith, setSharedWith] = useState(PLACEHOLDER_SHARED);
+  const [sharedWith] = useState(PLACEHOLDER_SHARED);
 
-  const togglePermission = (email) => {
-    setSharedWith((prev) =>
-      prev.map((s) =>
-        s.email === email ? { ...s, permission: s.permission === 'view' ? 'edit' : 'view' } : s
-      )
-    );
+  const handleOpenShared = (email) => {
+    // TODO: wire up to real "view shared tree" flow once sharing is implemented
+    console.log('Open shared tree for', email);
   };
 
   return (
@@ -37,12 +36,21 @@ export default function Layout() {
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           <div className="px-2 py-1.5 text-[10px] uppercase tracking-wider text-slate-500">Navigate</div>
-          <div className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-md text-sm bg-white/5 text-white">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/')}
+            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && navigate('/')}
+            className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-md text-sm bg-white/5 text-white cursor-pointer hover:bg-white/10 transition-colors"
+          >
             <div className="flex items-center gap-2.5 min-w-0">
-              <Trees size={16} className="shrink-0" /> <span className="truncate">Family Tree</span>
+              <Trees size={16} className="shrink-0" /> <span className="truncate">My Kinship</span>
             </div>
             <button
-              // TODO: wire up to real share flow once sharing is implemented
+              onClick={(e) => {
+                e.stopPropagation();
+                // TODO: wire up to real share flow once sharing is implemented
+              }}
               title="Share"
               className="shrink-0 p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
             >
@@ -61,26 +69,21 @@ export default function Layout() {
           {sharedOpen && (
             <div className="space-y-0.5">
               {sharedWith.map((s) => (
-                <div
+                <button
                   key={s.email}
-                  className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-xs group hover:bg-white/5"
+                  onClick={() => handleOpenShared(s.email)}
+                  title={`Open ${s.email}'s tree`}
+                  className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-xs text-left hover:bg-white/5 transition-colors"
                 >
-                  <span className="truncate text-slate-400" title={s.email}>{s.email}</span>
-                  <button
-                    onClick={() => togglePermission(s.email)}
-                    title={s.permission === 'view' ? 'View access — click to allow editing' : 'Edit access — click to make view-only'}
-                    className="shrink-0 p-1 rounded text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
+                  <span className="truncate text-slate-400">{s.email}</span>
+                  <span
+                    title={s.permission === 'view' ? 'View access' : 'Edit access'}
+                    className="shrink-0 p-1 text-slate-500"
                   >
                     {s.permission === 'view' ? <Eye size={13} /> : <Pencil size={13} />}
-                  </button>
-                </div>
+                  </span>
+                </button>
               ))}
-              <button
-                // TODO: wire up to real invite flow once sharing is implemented
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 mt-1 rounded-md text-xs text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                <UserPlus size={13} /> Share your tree
-              </button>
             </div>
           )}
         </nav>

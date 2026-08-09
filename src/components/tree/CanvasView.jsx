@@ -45,6 +45,7 @@ export default function CanvasView({ people, relationships, selectedPersonId, se
   }, [focusRequest]);
 
   const onPointerDown = (e) => {
+    if (e.target.closest('[data-zoom-controls]')) return;
     const nodeEl = e.target.closest('[data-node]');
     if (nodeEl) {
       const personId = nodeEl.getAttribute('data-person-id');
@@ -178,7 +179,7 @@ export default function CanvasView({ people, relationships, selectedPersonId, se
         })}
       </div>
 
-      <div className="absolute bottom-4 right-4 flex flex-col bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+      <div data-zoom-controls className="absolute bottom-4 right-4 flex flex-col bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
         <button onClick={() => setTransform(t => ({ ...t, scale: Math.min(2, t.scale + 0.15) }))} className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 text-slate-600"><Plus className="w-4 h-4" /></button>
         <div className="border-t border-slate-100" />
         <button onClick={() => setTransform(t => ({ ...t, scale: Math.max(0.3, t.scale - 0.15) }))} className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 text-slate-600"><Minus className="w-4 h-4" /></button>
