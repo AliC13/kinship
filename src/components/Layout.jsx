@@ -1,25 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { Trees, LogOut, ChevronDown, ChevronRight, Eye, Pencil, Share2 } from 'lucide-react';
+import { Trees, LogOut, Share2, ChevronDown, ChevronRight, Eye, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-
-// Placeholder data until real sharing is wired up to the backend.
-const PLACEHOLDER_SHARED = [
-  { email: 'jane.doe@example.com', permission: 'view' },
-  { email: 'sam.smith@example.com', permission: 'edit' },
-  { email: 'alex.chen@example.com', permission: 'view' },
-  { email: 'ali.han@example.com', permission: 'view' },
-];
+import { Shares } from '@/api/shares';
+import ShareModal from '@/components/tree/ShareModal';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [sharedOpen, setSharedOpen] = useState(true);
-  const [sharedWith] = useState(PLACEHOLDER_SHARED);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
-  const handleOpenShared = (email) => {
-    // TODO: wire up to real "view shared tree" flow once sharing is implemented
-    console.log('Open shared tree for', email);
+  // Trees other people have shared with me.
+  const [sharedWithMeOpen, setSharedWithMeOpen] = useState(true);
+  const [sharedWithMe, setSharedWithMe] = useState([]);
+  const [loadingSharedWithMe, setLoadingSharedWithMe] = useState(true);
+  const [pendingRemove, setPendingRemove] = useState(null); // share row awaiting removal confirmation
+  const [removing, setRemoving] = useState(false);
+
+  const loadSharedWithMe = useCallback(async () => {
+    setLoadingSharedWithMe(true);
+    try {
+      setSharedWithMe(await Shares.listSharedWithMe());
+    } catch (err) {
+      console.error('Failed to load shares', err);
+    } finally {
+      setLoadingSharedWithMe(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSharedWithMe();
+  }, [loadSharedWithMe]);
+
+  const confirmRemoveShared = async () => {
+    if (!pendingRemove) return;
+    setRemoving(true);
+    try {
+      await Shares.remove(pendingRemove.id);
+      setSharedWithMe((prev) => prev.filter((s) => s.id !== pendingRemove.id));
+    } catch (err) {
+      console.error('Failed to remove share', err);
+    } finally {
+      setRemoving(false);
+      setPendingRemove(null);
+    }
   };
 
   return (
@@ -49,7 +83,7 @@ export default function Layout() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                // TODO: wire up to real share flow once sharing is implemented
+                setShareModalOpen(true);
               }}
               title="Share"
               className="shrink-0 p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
@@ -59,30 +93,54 @@ export default function Layout() {
           </div>
 
           <button
-            onClick={() => setSharedOpen((v) => !v)}
+            onClick={() => setSharedWithMeOpen((v) => !v)}
             className="w-full flex items-center justify-between px-2 py-1.5 mt-4 text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors"
           >
-            <span>Shared</span>
-            {sharedOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            <span>Shared with me</span>
+            {sharedWithMeOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           </button>
 
-          {sharedOpen && (
+          {sharedWithMeOpen && (
             <div className="space-y-0.5">
-              {sharedWith.map((s) => (
-                <button
-                  key={s.email}
-                  onClick={() => handleOpenShared(s.email)}
-                  title={`Open ${s.email}'s tree`}
-                  className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-xs text-left hover:bg-white/5 transition-colors"
+              {loadingSharedWithMe && (
+                <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-500">
+                  <Loader2 size={12} className="animate-spin" /> Loading...
+                </div>
+              )}
+
+              {!loadingSharedWithMe && sharedWithMe.length === 0 && (
+                <div className="px-2.5 py-1.5 text-xs text-slate-600">
+                  No one has shared a tree with you yet.
+                </div>
+              )}
+
+              {!loadingSharedWithMe && sharedWithMe.map((s) => (
+                <div
+                  key={s.id}
+                  className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-xs"
                 >
-                  <span className="truncate text-slate-400">{s.email}</span>
-                  <span
-                    title={s.permission === 'view' ? 'View access' : 'Edit access'}
-                    className="shrink-0 p-1 text-slate-500"
-                  >
-                    {s.permission === 'view' ? <Eye size={13} /> : <Pencil size={13} />}
+                  <span className="truncate text-slate-400" title={s.owner_email}>
+                    {s.owner_email || 'Unknown'}
                   </span>
-                </button>
+                  <span className="flex items-center gap-1 shrink-0">
+                    <span
+                      title={s.permission === 'view' ? 'View access' : 'Edit access'}
+                      className="p-1 text-slate-500"
+                    >
+                      {s.permission === 'view' ? <Eye size={13} /> : <Pencil size={13} />}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPendingRemove(s);
+                      }}
+                      title="Remove"
+                      className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-white/10 transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </span>
+                </div>
               ))}
             </div>
           )}
@@ -107,6 +165,31 @@ export default function Layout() {
       <main className="flex-1 flex flex-col min-w-0">
         <Outlet />
       </main>
+
+      <ShareModal open={shareModalOpen} onClose={() => setShareModalOpen(false)} />
+
+      <AlertDialog open={!!pendingRemove} onOpenChange={(v) => !v && !removing && setPendingRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove yourself from this board?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll lose access to <span className="font-medium text-foreground">{pendingRemove?.owner_email}</span>'s family tree. You can only get it back if they share it with you again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingRemove(null)} disabled={removing}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRemoveShared}
+              disabled={removing}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {removing ? 'Removing...' : 'Remove'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
